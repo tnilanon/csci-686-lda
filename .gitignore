@@ -1,6 +1,9 @@
 # Data
 data/
 
+# Temp files
+*.swp
+
 # Object files
 *.o
 *.ko
@@ -33,3 +36,5 @@ data/
 
 # Debug files
 *.dSYM/
+
+
