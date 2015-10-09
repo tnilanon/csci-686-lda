@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "error_code.h"
 #include "dataset.h"
 
