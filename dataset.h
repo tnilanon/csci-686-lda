@@ -8,8 +8,8 @@
 #include <time.h>
 
 unsigned long num_iterations, K;
-unsigned long D, W, NNZ;
-unsigned long * size_i, ** word_i_j, ** count_i_j;
+unsigned long D, W, NNZ, N;
+unsigned long * size_d, ** word_d_i, ** count_d_i;
 
 void read_sparse_dataset(char input_file_name[]);
 
