@@ -7,9 +7,9 @@
 #include <math.h>
 #include <time.h>
 
-unsigned long num_iterations, K;
-unsigned long D, W, NNZ, N;
-unsigned long * size_d, ** word_d_i, ** count_d_i;
+long num_iterations, K;
+long D, W, NNZ, C;
+long * size_d, * C_d, ** word_d_i, ** count_d_i;
 
 void read_sparse_dataset(char input_file_name[]);
 
