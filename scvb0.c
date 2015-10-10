@@ -1,5 +1,6 @@
 #include "error_code.h"
 #include "dataset.h"
+#include "omp.h"
 
 #define N_theta_d_k(d, k) N_theta_d_k[(d)*K+(k)]
 #define N_phi_w_k(w, k) N_phi_w_k[(w)*K+(k)]
@@ -134,7 +135,18 @@ int main(int argc, char * argv[]) {
 
     // for each iteration
     for (long iteration_idx = 1; iteration_idx <= num_iterations; ++iteration_idx) {
+        tic = clock();
         inference(iteration_idx);
+        toc = clock();
+        printf("inference took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
+        tic = clock();
+        calculate_theta_phi();
+        toc = clock();
+        printf("theta and phi calculation took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
+        tic = clock();
+        calculate_perplexity();
+        toc = clock();
+        printf("perplexity calculation took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
     }
 
     return 0;
@@ -171,7 +183,7 @@ void calculate_perplexity() {
         }
     }
     entropy = - entropy;
-    printf("entropy (per word), perplexity: %.2f (%.2f), %.2f\n", entropy, entropy / N, exp2(entropy / N));
+    printf("entropy (per word), perplexity: %.2f (%.2f), %.2f\n", entropy, entropy / C, exp2(entropy / C));
 }
 
 void inference(long iteration_idx) {
@@ -202,7 +214,7 @@ void inference(long iteration_idx) {
 
             C_t[thread_id] = 0;
             // set N_hat_phi_t_w_k, N_hat_z_t_k to zero
-            memset(N_hat_phi_t_w_k(thread_id, 0, 0), 0, (W + 1) * K * sizeof(double));
+            memset(N_hat_phi_t_w_k[thread_id], 0, (W + 1) * K * sizeof(double));
 
             double * gamma_k = (double *)malloc(K * sizeof(double));
 
@@ -212,7 +224,7 @@ void inference(long iteration_idx) {
 
                 // for zero or more burn-in passes
                 // for each token i
-                for (long i = 0; i < size_d[d]) {
+                for (long i = 0; i < size_d[d]; ++i) {
                     // update gamma
                     double sum = 0;
                     for (long k = 0; k < K; ++k) {
@@ -233,7 +245,7 @@ void inference(long iteration_idx) {
                 }
 
                 // for each token i
-                for (long i = 0; i < size_d[d]) {
+                for (long i = 0; i < size_d[d]; ++i) {
                     // update gamma
                     double sum = 0;
                     for (long k = 0; k < K; ++k) {
@@ -252,7 +264,7 @@ void inference(long iteration_idx) {
                             + (1 - factor) * C_d[d] * gamma_k[k];
                     }
                     // update N_hat_phi_t_w_k, N_hat_z_t_k
-                    for (long k = 0; k < K; ++k)
+                    for (long k = 0; k < K; ++k) {
                         double temp = count_d_i[d][i] * gamma_k[k];
                         N_hat_phi_t_w_k(thread_id, word_d_i[d][i], k) += temp;
                         N_hat_z_t_k(thread_id, k) += temp;
@@ -264,7 +276,7 @@ void inference(long iteration_idx) {
         } // end omp parallel
         // update N_phi_w_k, N_z_k
         #pragma omp parallel for collapse(2) schedule(static) num_threads(num_threads)
-        for (long w = 1; w <= W ++w) {
+        for (long w = 1; w <= W; ++w) {
             for (long k = 0; k < K; ++k) {
                 for (long t = 0; t < num_batches_this_epoch; ++t) {
                     N_phi_w_k(w, k) = rho_phi * C / C_t[t] * N_hat_phi_t_w_k(t, w, k) \

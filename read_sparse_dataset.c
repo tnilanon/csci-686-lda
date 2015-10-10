@@ -43,7 +43,7 @@ void read_sparse_dataset(char input_file_name[]) {
     
     long next_temp, this_doc, last_doc = -1;
     for (long i = 0; i < NNZ; ++i) {
-        if (i % 100000 == 0 && i != 0) {
+        if (i % 1000000 == 0 && i != 0) {
             printf("Done reading %ld lines\n", i);
         }
         fscanf(input_file, "%ld ", &this_doc);
