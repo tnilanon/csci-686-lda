@@ -23,7 +23,7 @@ long * C_t;
 double ** N_hat_phi_t_w_k, ** N_hat_z_t_k;
 double * N_count_d, * theta_d_k, * phi_w_k;
 
-clock_t tic, toc;
+time_t tic, toc;
 
 void calculate_theta_phi();
 void calculate_perplexity();
@@ -47,17 +47,18 @@ int main(int argc, char * argv[]) {
         exit(INVALID_NUM_TOPICS);
     }
 
-    tic = clock();
+    time(&tic);
     read_sparse_dataset(argv[1]);
-    toc = clock();
-    printf("reading file took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
+    time(&toc);
+    printf("reading file took %.3f seconds\n", difftime(toc, tic));
     printf("\n");
 
-    printf("first (%ld): %ld %ld\n", size_d[1], word_d_i[1][0], count_d_i[1][0]);
-    printf("last (%ld): %ld %ld\n", size_d[D], word_d_i[D][size_d[D] - 1], count_d_i[D][size_d[D] - 1]);
+    printf("first word (%ld distinct in doc): %ld %ld\n", size_d[1], word_d_i[1][0], count_d_i[1][0]);
+    printf("last word (%ld distinct in doc): %ld %ld\n", size_d[D], word_d_i[D][size_d[D] - 1], count_d_i[D][size_d[D] - 1]);
+    printf("\n");
 
     // allocate calculation tables
-    tic = clock();
+    time(&tic);
 
     if ((N_theta_d_k = (double *) malloc((D + 1) * K * sizeof(double))) == NULL) {
         printf("Out of memory\n");
@@ -96,11 +97,11 @@ int main(int argc, char * argv[]) {
         exit(OUT_OF_MEMORY);
     }
 
-    toc = clock();
-    printf("memory allocation took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
+    time(&toc);
+    printf("memory allocation took %.3f seconds\n", difftime(toc, tic));
 
     // randomly initialize N_theta_d_k, N_phi_w_k, N_z_k
-    tic = clock();
+    time(&tic);
     memset(N_theta_d_k, 0, (D + 1) * K * sizeof(double));
     memset(N_phi_w_k, 0, (W + 1) * K * sizeof(double));
     // N_z_k is in N_phi_w_k
@@ -114,8 +115,8 @@ int main(int argc, char * argv[]) {
             }
         }
     }
-    toc = clock();
-    printf("random initialization took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
+    time(&toc);
+    printf("random initialization took %.3f seconds\n", difftime(toc, tic));
     double sum = 0;
     for (long k = 0; k < K; ++k) {
         sum += N_z_k(k);
@@ -124,29 +125,33 @@ int main(int argc, char * argv[]) {
     printf("\n");
 
     // calculate average perplexity per word
-    tic = clock();
+    printf("calculate initial perplexity:\n");
+    time(&tic);
     calculate_theta_phi();
-    toc = clock();
-    printf("theta and phi calculation took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
-    tic = clock();
+    time(&toc);
+    printf("theta and phi calculation took %.3f seconds\n", difftime(toc, tic));
+    time(&tic);
     calculate_perplexity();
-    toc = clock();
-    printf("perplexity calculation took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
+    time(&toc);
+    printf("perplexity calculation took %.3f seconds\n", difftime(toc, tic));
+    printf("\n");
 
     // for each iteration
     for (long iteration_idx = 1; iteration_idx <= num_iterations; ++iteration_idx) {
-        tic = clock();
+        printf("iteration %ld:\n", iteration_idx);
+        time(&tic);
         inference(iteration_idx);
-        toc = clock();
-        printf("inference took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
-        tic = clock();
+        time(&toc);
+        printf("inference took %.3f seconds\n", difftime(toc, tic));
+        time(&tic);
         calculate_theta_phi();
-        toc = clock();
-        printf("theta and phi calculation took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
-        tic = clock();
+        time(&toc);
+        printf("theta and phi calculation took %.3f seconds\n", difftime(toc, tic));
+        time(&tic);
         calculate_perplexity();
-        toc = clock();
-        printf("perplexity calculation took %.3f seconds\n", (double)(toc - tic)/CLOCKS_PER_SEC);
+        time(&toc);
+        printf("perplexity calculation took %.3f seconds\n", difftime(toc, tic));
+        printf("\n");
     }
 
     return 0;
