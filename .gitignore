@@ -1,6 +1,9 @@
 # Data
 data/
 
+# Build
+build/
+
 # Temp files
 *.swp
 
