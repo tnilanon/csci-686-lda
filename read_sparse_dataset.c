@@ -46,6 +46,7 @@ void read_sparse_dataset(char input_file_name[]) {
     for (long i = 0; i < NNZ; ++i) {
         if (i % 1000000 == 0 && i != 0) {
             printf("%ldM ", i/1000000);
+            fflush(stdout);
         }
         fscanf(input_file, "%ld ", &this_doc);
         // new document
