@@ -212,7 +212,7 @@ void calculate_theta_phi() {
 }
 
 void calculate_perplexity() {
-    double entropy = 0;
+    double entropy = 0, entropy_e = 0;
     for (long d = 1; d <= D; ++d) {
         for (long i = 0; i < size_d[d]; ++i) {
             double sum = 0;
@@ -220,10 +220,13 @@ void calculate_perplexity() {
                 sum += theta_d_k(d, k) * phi_w_k(word_d_i[d][i], k);
             }
             entropy += count_d_i[d][i] * log2(sum);
+            entropy_e += count_d_i[d][i] * log(sum);
         }
     }
     entropy = - entropy;
+    entropy_e = -entropy_e;
     printf("entropy (per word), perplexity: %.2f (%.2f), %.2f\n", entropy, entropy / C, exp2(entropy / C));
+    printf("perplexity_e: %.2f\n", exp(entropy_e / C));
 }
 
 void inference(long iteration_idx) {
