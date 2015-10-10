@@ -1,5 +1,7 @@
 #include "error_code.h"
 #include "dataset.h"
+#include <math.h>
+#include <sys/time.h>
 #include "omp.h"
 
 #define N_theta_d_k(d, k) N_theta_d_k[(d)*K+(k)]
