@@ -25,7 +25,32 @@ long * C_t;
 double ** N_hat_phi_t_w_k, ** N_hat_z_t_k;
 double * N_count_d, * theta_d_k, * phi_w_k;
 
-time_t tic, toc;
+struct timeval tic, toc, diff;
+
+// http://www.gnu.org/software/libc/manual/html_node/Elapsed-Time.html
+/* Subtract the ‘struct timeval’ values X and Y,
+   storing the result in RESULT.
+   Return 1 if the difference is negative, otherwise 0. */
+int timeval_subtract (result, x, y)
+    struct timeval *result, *x, *y;
+{
+    /* Perform the carry for the later subtraction by updating y. */
+    if (x->tv_usec < y->tv_usec) {
+        int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+        y->tv_usec -= 1000000 * nsec;
+        y->tv_sec += nsec;
+    }
+    if (x->tv_usec - y->tv_usec > 1000000) {
+        int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+        y->tv_usec += 1000000 * nsec;
+        y->tv_sec -= nsec;
+    }
+    /* Compute the time remaining to wait. tv_usec is certainly positive. */
+    result->tv_sec = x->tv_sec - y->tv_sec;
+    result->tv_usec = x->tv_usec - y->tv_usec;
+    /* Return 1 if result is negative. */
+    return x->tv_sec < y->tv_sec;
+}
 
 void calculate_theta_phi();
 void calculate_perplexity();
@@ -49,10 +74,11 @@ int main(int argc, char * argv[]) {
         exit(INVALID_NUM_TOPICS);
     }
 
-    time(&tic);
+    gettimeofday(&tic, NULL);
     read_sparse_dataset(argv[1]);
-    time(&toc);
-    printf("reading file took %.3f seconds\n", difftime(toc, tic));
+    gettimeofday(&toc, NULL);
+    timeval_subtract(&diff, &toc, &tic);
+    printf("reading file took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
     printf("\n");
 
     printf("first word (%ld distinct in doc): %ld %ld\n", size_d[1], word_d_i[1][0], count_d_i[1][0]);
@@ -60,7 +86,7 @@ int main(int argc, char * argv[]) {
     printf("\n");
 
     // allocate calculation tables
-    time(&tic);
+    gettimeofday(&tic, NULL);
 
     if ((N_theta_d_k = (double *) malloc((D + 1) * K * sizeof(double))) == NULL) {
         printf("Out of memory\n");
@@ -99,11 +125,12 @@ int main(int argc, char * argv[]) {
         exit(OUT_OF_MEMORY);
     }
 
-    time(&toc);
-    printf("memory allocation took %.3f seconds\n", difftime(toc, tic));
+    gettimeofday(&toc, NULL);
+    timeval_subtract(&diff, &toc, &tic);
+    printf("memory allocation took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
 
     // randomly initialize N_theta_d_k, N_phi_w_k, N_z_k
-    time(&tic);
+    gettimeofday(&tic, NULL);
     memset(N_theta_d_k, 0, (D + 1) * K * sizeof(double));
     memset(N_phi_w_k, 0, (W + 1) * K * sizeof(double));
     // N_z_k is in N_phi_w_k
@@ -117,8 +144,9 @@ int main(int argc, char * argv[]) {
             }
         }
     }
-    time(&toc);
-    printf("random initialization took %.3f seconds\n", difftime(toc, tic));
+    gettimeofday(&toc, NULL);
+    timeval_subtract(&diff, &toc, &tic);
+    printf("random initialization took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
     double sum = 0;
     for (long k = 0; k < K; ++k) {
         sum += N_z_k(k);
@@ -128,31 +156,36 @@ int main(int argc, char * argv[]) {
 
     // calculate average perplexity per word
     printf("calculate initial perplexity:\n");
-    time(&tic);
+    gettimeofday(&tic, NULL);
     calculate_theta_phi();
-    time(&toc);
-    printf("theta and phi calculation took %.3f seconds\n", difftime(toc, tic));
-    time(&tic);
+    gettimeofday(&toc, NULL);
+    timeval_subtract(&diff, &toc, &tic);
+    printf("theta and phi calculation took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
+    gettimeofday(&tic, NULL);
     calculate_perplexity();
-    time(&toc);
-    printf("perplexity calculation took %.3f seconds\n", difftime(toc, tic));
+    gettimeofday(&toc, NULL);
+    timeval_subtract(&diff, &toc, &tic);
+    printf("perplexity calculation took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
     printf("\n");
 
     // for each iteration
     for (long iteration_idx = 1; iteration_idx <= num_iterations; ++iteration_idx) {
         printf("iteration %ld:\n", iteration_idx);
-        time(&tic);
+        gettimeofday(&tic, NULL);
         inference(iteration_idx);
-        time(&toc);
-        printf("inference took %.3f seconds\n", difftime(toc, tic));
-        time(&tic);
+        gettimeofday(&toc, NULL);
+        timeval_subtract(&diff, &toc, &tic);
+        printf("inference took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
+        gettimeofday(&tic, NULL);
         calculate_theta_phi();
-        time(&toc);
-        printf("theta and phi calculation took %.3f seconds\n", difftime(toc, tic));
-        time(&tic);
+        gettimeofday(&toc, NULL);
+        timeval_subtract(&diff, &toc, &tic);
+        printf("theta and phi calculation took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
+        gettimeofday(&tic, NULL);
         calculate_perplexity();
-        time(&toc);
-        printf("perplexity calculation took %.3f seconds\n", difftime(toc, tic));
+        gettimeofday(&toc, NULL);
+        timeval_subtract(&diff, &toc, &tic);
+        printf("perplexity calculation took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
         printf("\n");
     }
 
