@@ -1,5 +1,8 @@
 #include "error_code.h"
 #include "dataset.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 long * word_temp, * count_temp;
 

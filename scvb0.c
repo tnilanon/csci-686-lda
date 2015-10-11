@@ -1,8 +1,12 @@
 #include "error_code.h"
 #include "dataset.h"
-#include <math.h>
-#include <sys/time.h>
+#include "util.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "omp.h"
+
+#include <math.h>
 
 #define N_theta_d_k(d, k) N_theta_d_k[(d)*K+(k)]
 #define N_phi_w_k(w, k) N_phi_w_k[(w)*K+(k)]
@@ -14,43 +18,23 @@
 #define theta_d_k(d, k) theta_d_k[(d)*K+(k)]
 #define phi_w_k(w, k) phi_w_k[(w)*K+(k)]
 
-const double alpha = 0.5;
-const double eta = 0.5;
+// constants
+const double ALPHA = 0.5;
+const double ETA = 0.5;
+const long BATCH_SIZE = 500;
 
+// set by omp
 long number_of_threads = 12;
-long batch_size = 500;
 
+// read in
+long num_iterations;
+long K;
+
+// for calculations
 double * N_theta_d_k, * N_phi_w_k, * N_z_k;
 long * C_t;
 double ** N_hat_phi_t_w_k, ** N_hat_z_t_k;
 double * N_count_d, * theta_d_k, * phi_w_k;
-
-struct timeval tic, toc, diff;
-
-// http://www.gnu.org/software/libc/manual/html_node/Elapsed-Time.html
-/* Subtract the ‘struct timeval’ values X and Y,
-   storing the result in RESULT.
-   Return 1 if the difference is negative, otherwise 0. */
-int timeval_subtract (result, x, y)
-    struct timeval *result, *x, *y;
-{
-    /* Perform the carry for the later subtraction by updating y. */
-    if (x->tv_usec < y->tv_usec) {
-        int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
-        y->tv_usec -= 1000000 * nsec;
-        y->tv_sec += nsec;
-    }
-    if (x->tv_usec - y->tv_usec > 1000000) {
-        int nsec = (x->tv_usec - y->tv_usec) / 1000000;
-        y->tv_usec += 1000000 * nsec;
-        y->tv_sec -= nsec;
-    }
-    /* Compute the time remaining to wait. tv_usec is certainly positive. */
-    result->tv_sec = x->tv_sec - y->tv_sec;
-    result->tv_usec = x->tv_usec - y->tv_usec;
-    /* Return 1 if result is negative. */
-    return x->tv_sec < y->tv_sec;
-}
 
 void calculate_theta_phi();
 void calculate_perplexity();
@@ -74,19 +58,17 @@ int main(int argc, char * argv[]) {
         exit(INVALID_NUM_TOPICS);
     }
 
-    gettimeofday(&tic, NULL);
+    start_timer();
     read_sparse_dataset(argv[1]);
-    gettimeofday(&toc, NULL);
-    timeval_subtract(&diff, &toc, &tic);
-    printf("reading file took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
+    stop_timer("reading file took %.3f seconds\n");
     printf("\n");
 
-    printf("first word (%ld distinct in doc): %ld %ld\n", size_d[1], word_d_i[1][0], count_d_i[1][0]);
-    printf("last word (%ld distinct in doc): %ld %ld\n", size_d[D], word_d_i[D][size_d[D] - 1], count_d_i[D][size_d[D] - 1]);
+    printf("first word (%ld distinct in doc %ld): id %ld count %ld\n", size_d[1], 1, word_d_i[1][0], count_d_i[1][0]);
+    printf("last word (%ld distinct in doc %ld): id %ld count %ld\n", size_d[D], D, word_d_i[D][size_d[D] - 1], count_d_i[D][size_d[D] - 1]);
     printf("\n");
 
     // allocate calculation tables
-    gettimeofday(&tic, NULL);
+    start_timer();
 
     if ((N_theta_d_k = (double *) malloc((D + 1) * K * sizeof(double))) == NULL) {
         printf("Out of memory\n");
@@ -125,12 +107,10 @@ int main(int argc, char * argv[]) {
         exit(OUT_OF_MEMORY);
     }
 
-    gettimeofday(&toc, NULL);
-    timeval_subtract(&diff, &toc, &tic);
-    printf("memory allocation took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
+    stop_timer("memory allocation took %.3f seconds\n");
 
     // randomly initialize N_theta_d_k, N_phi_w_k, N_z_k
-    gettimeofday(&tic, NULL);
+    start_timer();
     memset(N_theta_d_k, 0, (D + 1) * K * sizeof(double));
     memset(N_phi_w_k, 0, (W + 1) * K * sizeof(double));
     // N_z_k is in N_phi_w_k
@@ -144,48 +124,42 @@ int main(int argc, char * argv[]) {
             }
         }
     }
-    gettimeofday(&toc, NULL);
-    timeval_subtract(&diff, &toc, &tic);
-    printf("random initialization took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
+    stop_timer("random initialization took %.3f seconds\n");
+
     double sum = 0;
     for (long k = 0; k < K; ++k) {
         sum += N_z_k(k);
     }
-    printf("sum(N_z_k): %.0f\n", sum);
+    printf("sum(N_z_k): %.0f (should be equal to C)\n", sum);
     printf("\n");
 
     // calculate average perplexity per word
     printf("calculate initial perplexity:\n");
-    gettimeofday(&tic, NULL);
+
+    start_timer();
     calculate_theta_phi();
-    gettimeofday(&toc, NULL);
-    timeval_subtract(&diff, &toc, &tic);
-    printf("theta and phi calculation took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
-    gettimeofday(&tic, NULL);
+    stop_timer("theta and phi calculation took %.3f seconds\n");
+
+    start_timer();
     calculate_perplexity();
-    gettimeofday(&toc, NULL);
-    timeval_subtract(&diff, &toc, &tic);
-    printf("perplexity calculation took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
+    stop_timer("perplexity calculation took %.3f seconds\n");
     printf("\n");
 
     // for each iteration
     for (long iteration_idx = 1; iteration_idx <= num_iterations; ++iteration_idx) {
         printf("iteration %ld:\n", iteration_idx);
-        gettimeofday(&tic, NULL);
+
+        start_timer();
         inference(iteration_idx);
-        gettimeofday(&toc, NULL);
-        timeval_subtract(&diff, &toc, &tic);
-        printf("inference took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
-        gettimeofday(&tic, NULL);
+        stop_timer("inference took %.3f seconds\n");
+
+        start_timer();
         calculate_theta_phi();
-        gettimeofday(&toc, NULL);
-        timeval_subtract(&diff, &toc, &tic);
-        printf("theta and phi calculation took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
-        gettimeofday(&tic, NULL);
+        stop_timer("theta and phi calculation took %.3f seconds\n");
+
+        start_timer();
         calculate_perplexity();
-        gettimeofday(&toc, NULL);
-        timeval_subtract(&diff, &toc, &tic);
-        printf("perplexity calculation took %.3f seconds\n", diff.tv_sec + (double) diff.tv_usec / 1000000);
+        stop_timer("perplexity calculation took %.3f seconds\n");
         printf("\n");
     }
 
@@ -203,13 +177,13 @@ void calculate_theta_phi() {
     #pragma omp parallel for schedule(static) num_threads(number_of_threads)
     for (long d = 1; d <= D; ++d) {
         for (long k = 0; k < K; ++k) {
-            theta_d_k(d, k) = (double)(N_theta_d_k(d, k) + alpha) / (N_count_d(d) + K * alpha);
+            theta_d_k(d, k) = (double)(N_theta_d_k(d, k) + ALPHA) / (N_count_d(d) + K * ALPHA);
         }
     }
     #pragma omp parallel for schedule(static) num_threads(number_of_threads)
     for (long w = 1; w <= W; ++w) {
         for (long k = 0; k < K; ++k) {
-            phi_w_k(w, k) = (double)(N_phi_w_k(w, k) + eta) / (N_z_k(k) + W * eta);
+            phi_w_k(w, k) = (double)(N_phi_w_k(w, k) + ETA) / (N_z_k(k) + W * ETA);
         }
     }
 }
@@ -234,7 +208,7 @@ void inference(long iteration_idx) {
     double rho_theta = 1.0 / pow(100 + 10 * iteration_idx, 0.9);
     double rho_phi = 1.0 / pow(100 + 10 * iteration_idx, 0.9);
 
-    long num_batches = ceil((double)D / batch_size);
+    long num_batches = ceil((double)D / BATCH_SIZE);
     long num_epochs = ceil((double)num_batches / number_of_threads);
 
     for (long epoch_id = 0; epoch_id < num_epochs; ++epoch_id) {
@@ -250,8 +224,8 @@ void inference(long iteration_idx) {
         {
             long thread_id = omp_get_thread_num();
             long batch_id = thread_id + epoch_id * number_of_threads;
-            long first_doc_this_batch = batch_id * batch_size + 1;
-            long first_doc_next_batch = (batch_id + 1) * batch_size + 1;
+            long first_doc_this_batch = batch_id * BATCH_SIZE + 1;
+            long first_doc_next_batch = (batch_id + 1) * BATCH_SIZE + 1;
             if (first_doc_next_batch > D + 1) {
                 first_doc_next_batch = D + 1;
             }
@@ -272,9 +246,9 @@ void inference(long iteration_idx) {
                     // update gamma
                     double sum = 0;
                     for (long k = 0; k < K; ++k) {
-                        gamma_k[k] = (N_theta_d_k(d, k) + alpha) \
-                            * (N_phi_w_k(word_d_i[d][i], k) + eta) \
-                            / (N_z_k(k) + W * eta);
+                        gamma_k[k] = (N_theta_d_k(d, k) + ALPHA) \
+                            * (N_phi_w_k(word_d_i[d][i], k) + ETA) \
+                            / (N_z_k(k) + W * ETA);
                         sum += gamma_k[k];
                     }
                     for (long k = 0; k < K; ++k) {
@@ -293,9 +267,9 @@ void inference(long iteration_idx) {
                     // update gamma
                     double sum = 0;
                     for (long k = 0; k < K; ++k) {
-                        gamma_k[k] = (N_theta_d_k(d, k) + alpha) \
-                            * (N_phi_w_k(word_d_i[d][i], k) + eta) \
-                            / (N_z_k(k) + W * eta);
+                        gamma_k[k] = (N_theta_d_k(d, k) + ALPHA) \
+                            * (N_phi_w_k(word_d_i[d][i], k) + ETA) \
+                            / (N_z_k(k) + W * ETA);
                         sum += gamma_k[k];
                     }
                     for (long k = 0; k < K; ++k) {
