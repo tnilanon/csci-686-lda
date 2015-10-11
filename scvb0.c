@@ -22,13 +22,13 @@
 #define REPORT_PERPLEXITY
 
 // constants
-const double ALPHA = 0.5;
-const double ETA = 0.5;
-const long BATCH_SIZE = 500;
+#define ALPHA 0.5
+#define ETA 0.5
+#define BATCH_SIZE 500
+#define MIN_NUM_THREADS 12
 
-// just the default value
 // will be set by omp
-long number_of_threads = 12;
+long _num_threads_;
 
 // input
 long num_iterations;
@@ -63,9 +63,12 @@ int main(int argc, char * argv[]) {
         exit(INVALID_NUM_TOPICS);
     }
 
-    long number_of_processors = omp_get_num_procs();
-    number_of_threads = floor(0.9 * number_of_processors);
-    printf("found %ld processors; set number of threads to %ld;\n", number_of_processors, number_of_threads);
+    long num_processors = omp_get_num_procs();
+    _num_threads_ = floor(0.9 * num_processors);
+    if (_num_threads_ < MIN_NUM_THREADS) {
+        _num_threads_ = MIN_NUM_THREADS;
+    }
+    printf("found %ld processors; set number of threads to %ld;\n", num_processors, _num_threads_);
     printf("\n");
 
     start_timer();
@@ -92,13 +95,13 @@ int main(int argc, char * argv[]) {
     }
     N_z_k = N_phi_w_k;
 
-    C_t = (long *) malloc(number_of_threads * sizeof(long));
+    C_t = (long *) malloc(_num_threads_ * sizeof(long));
 
-    if ((N_hat_phi_t_w_k = (double **) malloc(number_of_threads * sizeof(double *))) == NULL) {
+    if ((N_hat_phi_t_w_k = (double **) malloc(_num_threads_ * sizeof(double *))) == NULL) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
     }
-    for (long t = 0; t < number_of_threads; ++t) {
+    for (long t = 0; t < _num_threads_; ++t) {
         if ((N_hat_phi_t_w_k[t] = (double *) malloc((W + 1) * K * sizeof(double))) == NULL) {
             printf("Out of memory\n");
             exit(OUT_OF_MEMORY);
@@ -187,20 +190,20 @@ int main(int argc, char * argv[]) {
 }
 
 void calculate_theta_phi() {
-    #pragma omp parallel for schedule(static) num_threads(number_of_threads)
+    #pragma omp parallel for schedule(static) num_threads(_num_threads_)
     for (long d = 1; d <= D; ++d) {
         N_count_d(d) = 0;
         for (long k = 0; k < K; ++k) {
             N_count_d(d) += N_theta_d_k(d, k);
         }
     }
-    #pragma omp parallel for schedule(static) num_threads(number_of_threads)
+    #pragma omp parallel for schedule(static) num_threads(_num_threads_)
     for (long d = 1; d <= D; ++d) {
         for (long k = 0; k < K; ++k) {
             theta_d_k(d, k) = (double)(N_theta_d_k(d, k) + ALPHA) / (N_count_d(d) + K * ALPHA);
         }
     }
-    #pragma omp parallel for schedule(static) num_threads(number_of_threads)
+    #pragma omp parallel for schedule(static) num_threads(_num_threads_)
     for (long w = 1; w <= W; ++w) {
         for (long k = 0; k < K; ++k) {
             phi_w_k(w, k) = (double)(N_phi_w_k(w, k) + ETA) / (N_z_k(k) + W * ETA);
@@ -210,7 +213,7 @@ void calculate_theta_phi() {
 
 void calculate_perplexity() {
     double entropy = 0;
-    #pragma omp parallel for reduction(+:entropy) schedule(static) num_threads(number_of_threads)
+    #pragma omp parallel for reduction(+:entropy) schedule(static) num_threads(_num_threads_)
     for (long d = 1; d <= D; ++d) {
         for (long i = 0; i < size_d[d]; ++i) {
             double P_d_i = 0;
@@ -229,11 +232,11 @@ void inference(long iteration_idx) {
     double rho_phi = 1.0 / pow(100 + 10 * iteration_idx, 0.9);
 
     long num_batches = ceil((double)D / BATCH_SIZE);
-    long num_epochs = ceil((double)num_batches / number_of_threads);
+    long num_epochs = ceil((double)num_batches / _num_threads_);
 
     for (long epoch_id = 0; epoch_id < num_epochs; ++epoch_id) {
-        long first_batch_this_epoch = epoch_id * number_of_threads;
-        long first_batch_next_epoch = (epoch_id + 1) * number_of_threads;
+        long first_batch_this_epoch = epoch_id * _num_threads_;
+        long first_batch_next_epoch = (epoch_id + 1) * _num_threads_;
         if (first_batch_next_epoch > num_batches) {
             first_batch_next_epoch = num_batches;
         }
@@ -243,7 +246,7 @@ void inference(long iteration_idx) {
         #pragma omp parallel num_threads(num_batches_this_epoch)
         {
             long thread_id = omp_get_thread_num();
-            long batch_id = thread_id + epoch_id * number_of_threads;
+            long batch_id = thread_id + epoch_id * _num_threads_;
             long first_doc_this_batch = batch_id * BATCH_SIZE + 1;
             long first_doc_next_batch = (batch_id + 1) * BATCH_SIZE + 1;
             if (first_doc_next_batch > D + 1) {
@@ -314,7 +317,7 @@ void inference(long iteration_idx) {
         } // end omp parallel
 
         // update N_phi_w_k
-        #pragma omp parallel for collapse(2) schedule(static) num_threads(number_of_threads)
+        #pragma omp parallel for collapse(2) schedule(static) num_threads(_num_threads_)
         for (long w = 1; w <= W; ++w) {
             for (long k = 0; k < K; ++k) {
                 for (long t = 0; t < num_batches_this_epoch; ++t) {
@@ -324,7 +327,7 @@ void inference(long iteration_idx) {
             }
         }
         // update N_z_k
-        #pragma omp parallel for schedule(static) num_threads(number_of_threads)
+        #pragma omp parallel for schedule(static) num_threads(_num_threads_)
         for (long k = 0; k < K; ++k) {
             for (long t = 0; t < num_batches_this_epoch; ++t) {
                 N_z_k(k) = rho_phi * C / C_t[t] * N_hat_z_t_k(t, k) \
