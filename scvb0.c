@@ -63,6 +63,12 @@ int main(int argc, char * argv[]) {
         exit(INVALID_NUM_TOPICS);
     }
 
+    number_of_threads = omp_get_num_procs();
+#ifndef NDEBUG
+    printf("found %ld processors; set that as number of threads\n", number_of_threads);
+    printf("\n");
+#endif
+
     start_timer();
     read_sparse_dataset(argv[1]);
     stop_timer("reading file took %.3f seconds\n");
