@@ -19,6 +19,8 @@
 #define theta_d_k(d, k) theta_d_k[(d)*K+(k)]
 #define phi_w_k(w, k) phi_w_k[(w)*K+(k)]
 
+#define REPORT_PERPLEXITY
+
 // constants
 const double ALPHA = 0.5;
 const double ETA = 0.5;
@@ -66,9 +68,11 @@ int main(int argc, char * argv[]) {
     stop_timer("reading file took %.3f seconds\n");
     printf("\n");
 
+#ifndef NDEBUG
     printf("first word (%ld distinct in doc %ld): id %ld count %ld\n", size_d[1], 1, word_d_i[1][0], count_d_i[1][0]);
     printf("last word (%ld distinct in doc %ld): id %ld count %ld\n", size_d[D], D, word_d_i[D][size_d[D] - 1], count_d_i[D][size_d[D] - 1]);
     printf("\n");
+#endif
 
     // allocate calculation tables
     start_timer();
@@ -129,13 +133,17 @@ int main(int argc, char * argv[]) {
     }
     stop_timer("random initialization took %.3f seconds\n");
 
+#ifndef NDEBUG
     double sum = 0;
     for (long k = 0; k < K; ++k) {
         sum += N_z_k(k);
     }
     printf("sum(N_z_k): %.0f (should be equal to C)\n", sum);
+#endif
+
     printf("\n");
 
+#ifdef REPORT_PERPLEXITY
     // calculate average perplexity per word
     printf("calculate initial perplexity:\n");
 
@@ -147,6 +155,7 @@ int main(int argc, char * argv[]) {
     calculate_perplexity();
     stop_timer("perplexity calculation took %.3f seconds\n");
     printf("\n");
+#endif
 
     // for each iteration
     for (long iteration_idx = 1; iteration_idx <= num_iterations; ++iteration_idx) {
@@ -156,6 +165,7 @@ int main(int argc, char * argv[]) {
         inference(iteration_idx);
         stop_timer("inference took %.3f seconds\n");
 
+#ifdef REPORT_PERPLEXITY
         start_timer();
         calculate_theta_phi();
         stop_timer("theta and phi calculation took %.3f seconds\n");
@@ -163,6 +173,8 @@ int main(int argc, char * argv[]) {
         start_timer();
         calculate_perplexity();
         stop_timer("perplexity calculation took %.3f seconds\n");
+#endif
+
         printf("\n");
     }
 
