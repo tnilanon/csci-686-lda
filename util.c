@@ -1,4 +1,5 @@
 #include "error_code.h"
+#include <stdio.h>
 #include <math.h>
 #include <sys/time.h>
 
@@ -36,7 +37,6 @@ void start_timer() {
 void stop_timer(char message[]) {
     gettimeofday(&toc, NULL);
     timeval_subtract(&diff, &toc, &tic);
-    printf("\t");
     printf(message, diff.tv_sec + (double) diff.tv_usec / 1000000);
 }
 

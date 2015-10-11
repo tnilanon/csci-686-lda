@@ -201,7 +201,7 @@ void calculate_perplexity() {
         }
     }
     entropy = - entropy;
-    printf("entropy (per word), perplexity: %.2f (%.2f), %.2f\n", entropy, entropy / C, exp2(entropy / C));
+    printf("(per word) entropy, perplexity: %.2f, %.2f\n", entropy / C, exp2(entropy / C));
 }
 
 void inference(long iteration_idx) {
