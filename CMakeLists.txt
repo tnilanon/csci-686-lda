@@ -7,10 +7,11 @@ string(ASCII 27 ESCAPE)
 
 # NB: this does not support multi-configurations generator (common in IDE)
 if(NOT CMAKE_BUILD_TYPE)
-  message(STATUS "${ESCAPE}[31mNo build type selected, default to Debug${ESCAPE}[0m")
+  message(STATUS "${ESCAPE}[31mNo build type selected")
+  message(STATUS "Build type set to Debug${ESCAPE}[0m")
   set(CMAKE_BUILD_TYPE Debug)
 else()
-  message(STATUS "${ESCAPE}[31mBuild type is ${CMAKE_BUILD_TYPE}${ESCAPE}[0m")
+  message(STATUS "${ESCAPE}[31mBuild type set to ${CMAKE_BUILD_TYPE}${ESCAPE}[0m")
 endif()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
