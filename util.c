@@ -1,6 +1,5 @@
 #include "error_code.h"
 #include <stdio.h>
-#include <math.h>
 #include <sys/time.h>
 
 struct timeval tic, toc, diff;

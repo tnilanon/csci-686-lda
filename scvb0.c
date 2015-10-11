@@ -4,16 +4,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "omp.h"
 
-#include <math.h>
-
+// inference
 #define N_theta_d_k(d, k) N_theta_d_k[(d)*K+(k)]
 #define N_phi_w_k(w, k) N_phi_w_k[(w)*K+(k)]
 #define N_z_k(k) N_z_k[(k)]
 #define N_hat_phi_t_w_k(t, w, k) N_hat_phi_t_w_k[(t)][(w)*K+(k)]
 #define N_hat_z_t_k(t, k) N_hat_z_t_k[(t)][(k)]
 
+// recover hidden variables
 #define N_count_d(d) N_count_d[(d)]
 #define theta_d_k(d, k) theta_d_k[(d)*K+(k)]
 #define phi_w_k(w, k) phi_w_k[(w)*K+(k)]
@@ -23,10 +24,11 @@ const double ALPHA = 0.5;
 const double ETA = 0.5;
 const long BATCH_SIZE = 500;
 
-// set by omp
+// just the default value
+// will be set by omp
 long number_of_threads = 12;
 
-// read in
+// input
 long num_iterations;
 long K;
 
@@ -52,6 +54,7 @@ int main(int argc, char * argv[]) {
         printf("Recheck number of iterations\n");
         exit(INVALID_NUM_ITERATIONS);
     }
+
     K = strtol(argv[3], NULL, 10);
     if (K == 0) {
         printf("Recheck number of topics\n");
@@ -292,7 +295,8 @@ void inference(long iteration_idx) {
 
             free(gamma_k);
         } // end omp parallel
-        // update N_phi_w_k, N_z_k
+
+        // update N_phi_w_k
         #pragma omp parallel for collapse(2) schedule(static) num_threads(number_of_threads)
         for (long w = 1; w <= W; ++w) {
             for (long k = 0; k < K; ++k) {
@@ -302,6 +306,7 @@ void inference(long iteration_idx) {
                 }
             }
         }
+        // update N_z_k
         #pragma omp parallel for schedule(static) num_threads(number_of_threads)
         for (long k = 0; k < K; ++k) {
             for (long t = 0; t < num_batches_this_epoch; ++t) {
