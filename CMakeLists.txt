@@ -3,7 +3,7 @@ set(OPENMP_MIN_VERSION 3.0)
 
 project(fast_lda C)
 
-# NB: this does not support multi-configurations generator
+# NB: this does not support multi-configurations generator (common in IDE)
 if(NOT CMAKE_BUILD_TYPE)
   message(STATUS "No build type selected, default to Debug")
   set(CMAKE_BUILD_TYPE Debug)
@@ -20,4 +20,5 @@ add_library(dataset STATIC read_sparse_dataset.c)
 add_executable(fastLDA scvb0.c)
 
 target_link_libraries(fastLDA dataset)
+
 
