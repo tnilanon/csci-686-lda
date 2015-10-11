@@ -127,7 +127,6 @@ int main(int argc, char * argv[]) {
     memset(N_theta_d_k, 0, (D + 1) * K * sizeof(double));
     memset(N_phi_w_k, 0, (W + 1) * K * sizeof(double));
     // N_z_k is in N_phi_w_k
-    #pragma omp parallel for schedule(static) num_threads(number_of_threads)
     for (long d = 1; d <= D; ++d) {
         for (long i = 0; i < size_d[d]; ++i) {
             for (long c = 0; c < count_d_i[d][i]; ++c) {
