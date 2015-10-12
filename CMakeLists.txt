@@ -15,7 +15,6 @@ else()
 endif()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lm")
 
 find_package(OpenMP	${OPENMP_MIN_VERSION} REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -25,5 +24,5 @@ add_library(util STATIC util.c)
 
 add_executable(fastLDA scvb0.c)
 
-target_link_libraries(fastLDA dataset util)
+target_link_libraries(fastLDA dataset util "-lm")
 

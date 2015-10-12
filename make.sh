@@ -16,7 +16,7 @@ fi
 
 cd build
 rm -rf *
-cmake -DCMAKE_C_COMPILER=${gcc} ..
+cmake -DCMAKE_C_COMPILER=${gcc} -DCMAKE_BUILD_TYPE=Release ..
 make
 cd ..
 ln -sf build/fastLDA .
