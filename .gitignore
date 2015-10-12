@@ -2,7 +2,10 @@
 data/
 
 # Build
-build/
+*build/
+
+# Executable
+fastLDA
 
 # Temp files
 *.swp
