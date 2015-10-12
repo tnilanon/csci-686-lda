@@ -46,8 +46,8 @@ void inference(long iteration_idx);
 
 int main(int argc, char * argv[]) {
 
-    if (argc != 4) {
-        printf("Usage: ./fastLDA docword.txt iterations NumOfTopics\n");
+    if (argc < 4 || argc > 5) {
+        printf("Usage: ./fastLDA docword.txt iterations num_topics num_threads\n");
         exit(INVALID_CALL);
     }
 
@@ -63,12 +63,26 @@ int main(int argc, char * argv[]) {
         exit(INVALID_NUM_TOPICS);
     }
 
-    long num_processors = omp_get_num_procs();
-    _num_threads_ = floor(0.9 * num_processors);
-    if (_num_threads_ < MIN_NUM_THREADS) {
-        _num_threads_ = MIN_NUM_THREADS;
+    if (argc == 5) {
+        _num_threads_ = strtol(argv[4], NULL, 10);
+        if (_num_threads_ == 0) {
+            printf("Recheck number of threads\n");
+            exit(INVALID_NUM_THREADS);
+        }
+    } else {
+        _num_threads_ = 0;
     }
-    printf("found %ld processors; set number of threads to %ld;\n", num_processors, _num_threads_);
+
+    if (_num_threads_ == 0) {
+        long num_processors = omp_get_num_procs();
+        _num_threads_ = floor(0.9 * num_processors);
+        if (_num_threads_ < MIN_NUM_THREADS) {
+            _num_threads_ = MIN_NUM_THREADS;
+        }
+        printf("found %ld processors; set number of threads to %ld;\n", num_processors, _num_threads_);
+    } else {
+        printf("set number of threads to %ld;\n", _num_threads_);
+    }
     printf("\n");
 
     start_timer();
