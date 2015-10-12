@@ -47,7 +47,7 @@ void inference(long iteration_idx);
 int main(int argc, char * argv[]) {
 
     if (argc < 4 || argc > 5) {
-        printf("Usage: ./fastLDA docword.txt iterations num_topics num_threads\n");
+        printf("Usage: ./fastLDA docword.txt iterations num_topics [num_threads]\n");
         exit(INVALID_CALL);
     }
 
