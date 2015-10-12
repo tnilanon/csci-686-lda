@@ -14,7 +14,10 @@ void read_sparse_dataset(char input_file_name[]) {
         exit(CANNOT_OPEN_FILE);
     }
 
-    fscanf(input_file, "%ld\n%ld\n%ld\n", &D, &W, &NNZ);
+    if (3 != fscanf(input_file, "%ld\n%ld\n%ld\n", &D, &W, &NNZ)) {
+        printf("There is something wrong with input file format\n");
+        exit(INVALID_INPUT_FILE_FORMAT);
+    }
     printf("D = %ld; W = %ld; NNZ = %ld;\n", D, W, NNZ);
 
     C = 0;
@@ -51,7 +54,10 @@ void read_sparse_dataset(char input_file_name[]) {
             printf("%ldM ", i/1000000);
             fflush(stdout);
         }
-        fscanf(input_file, "%ld ", &this_doc);
+        if (1 != fscanf(input_file, "%ld ", &this_doc)) {
+            printf("There is something wrong with input file format\n");
+            exit(INVALID_INPUT_FILE_FORMAT);
+        }
         // new document
         if (this_doc != last_doc) {
             if (last_doc != -1) {
@@ -73,7 +79,10 @@ void read_sparse_dataset(char input_file_name[]) {
             // reset temp array
             next_temp = 0;
         }
-        fscanf(input_file, "%ld %ld\n", &word_temp[next_temp], &count_temp[next_temp]);
+        if (2 != fscanf(input_file, "%ld %ld\n", &word_temp[next_temp], &count_temp[next_temp])) {
+            printf("There is something wrong with input file format\n");
+            exit(INVALID_INPUT_FILE_FORMAT);
+        }
         C_d[this_doc] += count_temp[next_temp];
         C += count_temp[next_temp];
         ++next_temp;
