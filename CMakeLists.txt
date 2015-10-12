@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2.2)
+cmake_minimum_required(VERSION 2.8)
 set(OPENMP_MIN_VERSION 3.0)
 
 project(fast_lda C)
