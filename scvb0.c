@@ -91,7 +91,7 @@ int main(int argc, char * argv[]) {
     printf("\n");
 
 #ifndef NDEBUG
-    printf("first word (%ld distinct in doc %ld): id %ld count %ld\n", size_d[1], 1, word_d_i[1][0], count_d_i[1][0]);
+    printf("first word (%ld distinct in doc %ld): id %ld count %ld\n", size_d[1], (long)1, word_d_i[1][0], count_d_i[1][0]);
     printf("last word (%ld distinct in doc %ld): id %ld count %ld\n", size_d[D], D, word_d_i[D][size_d[D] - 1], count_d_i[D][size_d[D] - 1]);
     printf("\n");
 #endif
