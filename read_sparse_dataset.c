@@ -10,7 +10,7 @@ void read_sparse_dataset(char input_file_name[]) {
 
     FILE *input_file = fopen(input_file_name, "r");
     if (input_file == NULL) {
-        printf("Can't open docword.txt\n");
+        printf("Can't open docword.txt to read\n");
         exit(CANNOT_OPEN_FILE);
     }
 
@@ -100,6 +100,11 @@ void read_sparse_dataset(char input_file_name[]) {
     }
     memcpy(count_d_i[last_doc], count_temp, copy_size);
     printf("\n");
+
+    if (0 != fclose(input_file)) {
+        printf("Can't close docword.txt\n");
+        exit(CANNOT_CLOSE_FILE);
+    }
 
     printf("C = %ld;\n", C);
 }

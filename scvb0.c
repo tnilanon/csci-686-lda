@@ -19,13 +19,16 @@
 #define theta_d_k(d, k) theta_d_k[(d)*K+(k)]
 #define phi_w_k(w, k) phi_w_k[(w)*K+(k)]
 
+#ifndef NDEBUG
 #define REPORT_PERPLEXITY
+#endif
 
 // constants
 #define ALPHA 0.5
 #define ETA 0.5
 #define BATCH_SIZE 500
 #define MIN_NUM_THREADS 12
+#define NUM_TERMS_REPORTED_PER_TOPIC 100
 
 // will be set by omp
 long _num_threads_;
@@ -43,6 +46,7 @@ double * N_count_d, * theta_d_k, * phi_w_k;
 void calculate_theta_phi();
 void calculate_perplexity();
 void inference(long iteration_idx);
+void output();
 
 int main(int argc, char * argv[]) {
 
@@ -200,6 +204,14 @@ int main(int argc, char * argv[]) {
         printf("\n");
     }
 
+    start_timer();
+    calculate_theta_phi();
+    stop_timer("theta and phi calculation took %.3f seconds\n");
+
+    start_timer();
+    output();
+    stop_timer("sorting data and writing files took %.3f seconds\n");
+
     return 0;
 }
 
@@ -348,6 +360,72 @@ void inference(long iteration_idx) {
                     + (1 - rho_phi) * N_z_k(k);
             }
         }
+    }
+}
+
+void output() {
+    FILE * output_file;
+    struct _word_probability ** topic;
+
+    if((topic = (struct _word_probability **) malloc(K * sizeof(struct _word_probability *))) == NULL) {
+        printf("Out of memory\n");
+        exit(OUT_OF_MEMORY);
+    }
+    for (long k = 0; k < K; ++k) {
+        if((topic[k] = (struct _word_probability *) malloc(W * sizeof(struct _word_probability))) == NULL) {
+            printf("Out of memory\n");
+            exit(OUT_OF_MEMORY);
+        }
+        for (long i = 0; i < W; ++i) {
+            topic[k][i].word = i + 1;
+            topic[k][i].probability = phi_w_k(i + 1, k);
+        }
+    }
+
+    // sort topic probabilities over words
+    #pragma omp parallel for schedule(static) num_threads(_num_threads_)
+    for (long k = 0; k < K; ++k) {
+        merge_sort(topic[k], W);
+    }
+
+    // topics.txt
+    if ((output_file = fopen("topics.txt", "w")) == NULL) {
+        printf("Can't open topics.txt to write\n");
+        exit(CANNOT_OPEN_FILE);
+    }
+    for (long k = 0; k < K; ++k) {
+        for (long i = 0; i < NUM_TERMS_REPORTED_PER_TOPIC; ++i) {
+            fprintf(output_file, "%ld:%8.6f", topic[k][i].word, topic[k][i].probability);
+            if (i == NUM_TERMS_REPORTED_PER_TOPIC - 1) {
+                fprintf(output_file, "\n");
+            } else {
+                fprintf(output_file, ", ");
+            }
+        }
+    }
+    if (0 != fclose(output_file)) {
+        printf("Can't close topics.txt\n");
+        exit(CANNOT_CLOSE_FILE);
+    }
+
+    // doctopic.txt
+    if ((output_file = fopen("doctopic.txt", "w")) == NULL) {
+        printf("Can't open doctopic.txt to write\n");
+        exit(CANNOT_OPEN_FILE);
+    }
+    for (long d = 1; d <= D; ++d) {
+        for (long k = 0; k < K; ++k) {
+            fprintf(output_file, "%8.6f", theta_d_k(d, k));
+            if (k == K - 1) {
+                fprintf(output_file, "\n");
+            } else {
+                fprintf(output_file, ", ");
+            }
+        }
+    }
+    if (0 != fclose(output_file)) {
+        printf("Can't close doctopic.txt\n");
+        exit(CANNOT_CLOSE_FILE);
     }
 }
 
