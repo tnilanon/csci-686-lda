@@ -27,10 +27,10 @@
 
 // constants
 #ifndef ALPHA
-#define ALPHA 0.5
+#define ALPHA 0.1
 #endif
 #ifndef ETA
-#define ETA 0.5
+#define ETA 0.08
 #endif
 #ifndef NUM_BURN_IN
 #define NUM_BURN_IN 1
