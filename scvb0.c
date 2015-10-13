@@ -300,7 +300,7 @@ void inference(long iteration_idx) {
             // set N_hat_phi_t_w_k, N_hat_z_t_k to zero
             memset(N_hat_phi_t_w_k[thread_id], 0, (W + 1) * K * sizeof(double));
 
-            double * gamma_k = (double *)malloc(K * sizeof(double));
+            double * gamma_k = (double *) malloc(K * sizeof(double));
 
             // for each document d in batch
             for (long d = first_doc_this_batch; d < first_doc_next_batch; ++d) {
@@ -311,21 +311,19 @@ void inference(long iteration_idx) {
                     // for each token i
                     for (long i = 0; i < size_d[d]; ++i) {
                         // update gamma
-                        double sum = 0;
+                        double normalizer = 0;
                         for (long k = 0; k < K; ++k) {
                             gamma_k[k] = (N_theta_d_k(d, k) + ALPHA) \
                                 * (N_phi_w_k(word_d_i[d][i], k) + ETA) \
                                 / (N_z_k(k) + W * ETA);
-                            sum += gamma_k[k];
+                            normalizer += gamma_k[k];
                         }
-                        for (long k = 0; k < K; ++k) {
-                            gamma_k[k] /= sum;
-                        }
+                        normalizer = 1 / normalizer;
                         // update N_theta_d_k
                         double factor = pow(1 - rho_theta, count_d_i[d][i]);
                         for (long k = 0; k < K; ++k) {
                             N_theta_d_k(d, k) = factor * N_theta_d_k(d, k) \
-                                + (1 - factor) * C_d[d] * gamma_k[k];
+                                + (1 - factor) * C_d[d] * gamma_k[k] * normalizer;
                         }
                     }
                 }
@@ -334,25 +332,23 @@ void inference(long iteration_idx) {
                 // for each token i
                 for (long i = 0; i < size_d[d]; ++i) {
                     // update gamma
-                    double sum = 0;
+                    double normalizer = 0;
                     for (long k = 0; k < K; ++k) {
                         gamma_k[k] = (N_theta_d_k(d, k) + ALPHA) \
                             * (N_phi_w_k(word_d_i[d][i], k) + ETA) \
                             / (N_z_k(k) + W * ETA);
-                        sum += gamma_k[k];
+                        normalizer += gamma_k[k];
                     }
-                    for (long k = 0; k < K; ++k) {
-                        gamma_k[k] /= sum;
-                    }
+                    normalizer = 1 / normalizer;
                     // update N_theta_d_k
                     double factor = pow(1 - rho_theta, count_d_i[d][i]);
                     for (long k = 0; k < K; ++k) {
                         N_theta_d_k(d, k) = factor * N_theta_d_k(d, k) \
-                            + (1 - factor) * C_d[d] * gamma_k[k];
+                            + (1 - factor) * C_d[d] * gamma_k[k] * normalizer;
                     }
                     // update N_hat_phi_t_w_k, N_hat_z_t_k
                     for (long k = 0; k < K; ++k) {
-                        double temp = count_d_i[d][i] * gamma_k[k];
+                        double temp = count_d_i[d][i] * gamma_k[k] * normalizer;
                         N_hat_phi_t_w_k(thread_id, word_d_i[d][i], k) += temp;
                         N_hat_z_t_k(thread_id, k) += temp;
                     }
