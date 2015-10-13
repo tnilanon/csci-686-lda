@@ -43,9 +43,13 @@ long * C_t;
 double ** N_hat_phi_t_w_k, ** N_hat_z_t_k;
 double * N_count_d, * theta_d_k, * phi_w_k;
 
+// for output
+struct _word_probability ** topic;
+
 void calculate_theta_phi();
 void calculate_perplexity();
 void inference(long iteration_idx);
+void calculate_topic();
 void output();
 
 int main(int argc, char * argv[]) {
@@ -209,8 +213,12 @@ int main(int argc, char * argv[]) {
     stop_timer("theta and phi calculation took %.3f seconds\n");
 
     start_timer();
+    calculate_topic();
+    stop_timer("topic calculation took %.3f seconds\n");
+
+    start_timer();
     output();
-    stop_timer("sorting data and writing files took %.3f seconds\n");
+    stop_timer("writing files took %.3f seconds\n");
 
     return 0;
 }
@@ -363,10 +371,7 @@ void inference(long iteration_idx) {
     }
 }
 
-void output() {
-    FILE * output_file;
-    struct _word_probability ** topic;
-
+void calculate_topic() {
     if((topic = (struct _word_probability **) malloc(K * sizeof(struct _word_probability *))) == NULL) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
@@ -387,6 +392,10 @@ void output() {
     for (long k = 0; k < K; ++k) {
         merge_sort(topic[k], W);
     }
+}
+
+void output() {
+    FILE * output_file;
 
     // topics.txt
     if ((output_file = fopen("topics.txt", "w")) == NULL) {
