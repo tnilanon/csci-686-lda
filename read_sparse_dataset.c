@@ -21,6 +21,8 @@ void read_sparse_dataset(char input_file_name[]) {
     printf("D = %ld; W = %ld; NNZ = %ld;\n", D, W, NNZ);
 
     C = 0;
+    count_max = 0;
+
     if ((word_temp = (long *) malloc(W * sizeof(long))) == NULL) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
@@ -83,8 +85,10 @@ void read_sparse_dataset(char input_file_name[]) {
             printf("There is something wrong with input file format\n");
             exit(INVALID_INPUT_FILE_FORMAT);
         }
-        C_d[this_doc] += count_temp[next_temp];
-        C += count_temp[next_temp];
+        long ctnt = count_temp[next_temp];
+        C_d[this_doc] += ctnt;
+        C += ctnt;
+        count_max = (ctnt > count_max)? ctnt: count_max;
         ++next_temp;
     }
     size_d[last_doc] = next_temp;

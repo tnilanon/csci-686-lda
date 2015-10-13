@@ -48,7 +48,9 @@ long K;
 // for calculations
 double * N_theta_d_k, * N_phi_w_k, * N_z_k;
 long * C_t;
-double * C_over_C_t, * one_over_N_z_k_plus_W_times_ETA;
+double * rho_phi_times_C_over_C_t;
+double * one_over_N_z_k_plus_W_times_ETA;
+double * factor;
 double ** N_hat_phi_t_w_k, ** N_hat_z_t_k;
 double * theta_d_k, * phi_w_k;
 
@@ -130,11 +132,15 @@ int main(int argc, char * argv[]) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
     }
-    if ((C_over_C_t = (double *) malloc(_num_threads_ * sizeof(double))) == NULL) {
+    if ((rho_phi_times_C_over_C_t = (double *) malloc(_num_threads_ * sizeof(double))) == NULL) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
     }
     if ((one_over_N_z_k_plus_W_times_ETA = (double *) malloc(K * sizeof(double))) == NULL) {
+        printf("Out of memory\n");
+        exit(OUT_OF_MEMORY);
+    }
+    if ((factor = (double *) malloc((count_max + 1) * sizeof(double))) == NULL) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
     }
@@ -281,9 +287,15 @@ void calculate_perplexity() {
 void inference(long iteration_idx) {
     double rho_theta = pow(100 + 10 * iteration_idx, -0.9);
     double rho_phi = pow(100 + 10 * iteration_idx, -0.9);
+    double one_minus_rho_phi = 1 - rho_phi;
 
     long num_batches = ceil((double)D / BATCH_SIZE);
     long num_epochs = ceil((double)num_batches / _num_threads_);
+
+    #pragma omp parallel for schedule(static) num_threads(_num_threads_)
+    for (long c = 1; c <= count_max; ++c) {
+        factor[c] = pow(1 - rho_theta, c);
+    }
 
     for (long epoch_id = 0; epoch_id < num_epochs; ++epoch_id) {
         long first_batch_this_epoch = epoch_id * _num_threads_;
@@ -293,9 +305,12 @@ void inference(long iteration_idx) {
         }
         long num_batches_this_epoch = first_batch_next_epoch - first_batch_this_epoch;
 
+        #pragma omp parallel for schedule(static) num_threads(_num_threads_)
         for (long k = 0; k < K; ++k) {
             one_over_N_z_k_plus_W_times_ETA[k] = 1 / (N_z_k(k) + W * ETA);
         }
+
+        memset(C_t, 0, num_batches_this_epoch * sizeof(long));
 
         // for each batch in epoch
         #pragma omp parallel num_threads(num_batches_this_epoch)
@@ -307,8 +322,6 @@ void inference(long iteration_idx) {
             if (first_doc_next_batch > D + 1) {
                 first_doc_next_batch = D + 1;
             }
-
-            C_t[thread_id] = 0;
 
             // set N_hat_phi_t_w_k, N_hat_z_t_k to zero
             memset(N_hat_phi_t_w_k[thread_id], 0, (W + 1) * K * sizeof(double));
@@ -333,10 +346,9 @@ void inference(long iteration_idx) {
                         }
                         normalizer = 1 / normalizer;
                         // update N_theta_d_k
-                        double factor = pow(1 - rho_theta, count_d_i[d][i]);
                         for (long k = 0; k < K; ++k) {
-                            N_theta_d_k(d, k) = factor * N_theta_d_k(d, k) \
-                                + (1 - factor) * C_d[d] * gamma_k[k] * normalizer;
+                            N_theta_d_k(d, k) = factor[count_d_i[d][i]] * N_theta_d_k(d, k) \
+                                + (1 - factor[count_d_i[d][i]]) * C_d[d] * gamma_k[k] * normalizer;
                         }
                     }
                 }
@@ -353,14 +365,10 @@ void inference(long iteration_idx) {
                         normalizer += gamma_k[k];
                     }
                     normalizer = 1 / normalizer;
-                    // update N_theta_d_k
-                    double factor = pow(1 - rho_theta, count_d_i[d][i]);
+                    // update N_theta_d_k, N_hat_phi_t_w_k, N_hat_z_t_k
                     for (long k = 0; k < K; ++k) {
-                        N_theta_d_k(d, k) = factor * N_theta_d_k(d, k) \
-                            + (1 - factor) * C_d[d] * gamma_k[k] * normalizer;
-                    }
-                    // update N_hat_phi_t_w_k, N_hat_z_t_k
-                    for (long k = 0; k < K; ++k) {
+                        N_theta_d_k(d, k) = factor[count_d_i[d][i]] * N_theta_d_k(d, k) \
+                            + (1 - factor[count_d_i[d][i]]) * C_d[d] * gamma_k[k] * normalizer;
                         double temp = count_d_i[d][i] * gamma_k[k] * normalizer;
                         N_hat_phi_t_w_k(thread_id, word_d_i[d][i], k) += temp;
                         N_hat_z_t_k(thread_id, k) += temp;
@@ -371,9 +379,9 @@ void inference(long iteration_idx) {
             free(gamma_k);
         } // end omp parallel
 
-        // compute C / C_t[t]
+        // compute rho_phi * C / C_t[t]
         for (long t = 0; t < num_batches_this_epoch; ++t) {
-            C_over_C_t[t] = (double)C / C_t[t];
+            rho_phi_times_C_over_C_t[t] = rho_phi * C / C_t[t];
         }
 
         // update N_phi_w_k
@@ -381,8 +389,8 @@ void inference(long iteration_idx) {
         for (long w = 1; w <= W; ++w) {
             for (long k = 0; k < K; ++k) {
                 for (long t = 0; t < num_batches_this_epoch; ++t) {
-                    N_phi_w_k(w, k) = rho_phi * C_over_C_t[t] * N_hat_phi_t_w_k(t, w, k) \
-                        + (1 - rho_phi) * N_phi_w_k(w, k);
+                    N_phi_w_k(w, k) = rho_phi_times_C_over_C_t[t] * N_hat_phi_t_w_k(t, w, k) \
+                        + one_minus_rho_phi * N_phi_w_k(w, k);
                 }
             }
         }
@@ -390,8 +398,8 @@ void inference(long iteration_idx) {
         #pragma omp parallel for schedule(static) num_threads(_num_threads_)
         for (long k = 0; k < K; ++k) {
             for (long t = 0; t < num_batches_this_epoch; ++t) {
-                N_z_k(k) = rho_phi * C_over_C_t[t] * N_hat_z_t_k(t, k) \
-                    + (1 - rho_phi) * N_z_k(k);
+                N_z_k(k) = rho_phi_times_C_over_C_t[t] * N_hat_z_t_k(t, k) \
+                    + one_minus_rho_phi * N_z_k(k);
             }
         }
     }
