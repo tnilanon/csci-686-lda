@@ -32,6 +32,9 @@
 #ifndef ETA
 #define ETA 0.5
 #endif
+#ifndef NUM_BURN_IN
+#define NUM_BURN_IN 1
+#endif
 #define BATCH_SIZE 500
 #define MIN_NUM_THREADS 12
 #define NUM_TERMS_REPORTED_PER_TOPIC 100
@@ -304,27 +307,30 @@ void inference(long iteration_idx) {
                 C_t[thread_id] += C_d[d];
 
                 // for zero or more burn-in passes
-                // for each token i
-                for (long i = 0; i < size_d[d]; ++i) {
-                    // update gamma
-                    double sum = 0;
-                    for (long k = 0; k < K; ++k) {
-                        gamma_k[k] = (N_theta_d_k(d, k) + ALPHA) \
-                            * (N_phi_w_k(word_d_i[d][i], k) + ETA) \
-                            / (N_z_k(k) + W * ETA);
-                        sum += gamma_k[k];
-                    }
-                    for (long k = 0; k < K; ++k) {
-                        gamma_k[k] /= sum;
-                    }
-                    // update N_theta_d_k
-                    double factor = pow(1 - rho_theta, count_d_i[d][i]);
-                    for (long k = 0; k < K; ++k) {
-                        N_theta_d_k(d, k) = factor * N_theta_d_k(d, k) \
-                            + (1 - factor) * C_d[d] * gamma_k[k];
+                for (long b = 0; b < NUM_BURN_IN; ++b) {
+                    // for each token i
+                    for (long i = 0; i < size_d[d]; ++i) {
+                        // update gamma
+                        double sum = 0;
+                        for (long k = 0; k < K; ++k) {
+                            gamma_k[k] = (N_theta_d_k(d, k) + ALPHA) \
+                                * (N_phi_w_k(word_d_i[d][i], k) + ETA) \
+                                / (N_z_k(k) + W * ETA);
+                            sum += gamma_k[k];
+                        }
+                        for (long k = 0; k < K; ++k) {
+                            gamma_k[k] /= sum;
+                        }
+                        // update N_theta_d_k
+                        double factor = pow(1 - rho_theta, count_d_i[d][i]);
+                        for (long k = 0; k < K; ++k) {
+                            N_theta_d_k(d, k) = factor * N_theta_d_k(d, k) \
+                                + (1 - factor) * C_d[d] * gamma_k[k];
+                        }
                     }
                 }
 
+                // done with burn-in
                 // for each token i
                 for (long i = 0; i < size_d[d]; ++i) {
                     // update gamma
