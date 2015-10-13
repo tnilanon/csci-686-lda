@@ -94,7 +94,7 @@ int main(int argc, char * argv[]) {
 
     if (_num_threads_ == 0) {
         long num_processors = omp_get_num_procs();
-        _num_threads_ = floor(0.9 * num_processors);
+        _num_threads_ = floor(1.2 * num_processors);
         if (_num_threads_ < MIN_NUM_THREADS) {
             _num_threads_ = MIN_NUM_THREADS;
         }
