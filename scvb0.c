@@ -26,8 +26,12 @@
 #endif
 
 // constants
+#ifndef ALPHA
 #define ALPHA 0.5
+#endif
+#ifndef ETA
 #define ETA 0.5
+#endif
 #define BATCH_SIZE 500
 #define MIN_NUM_THREADS 12
 #define NUM_TERMS_REPORTED_PER_TOPIC 100
