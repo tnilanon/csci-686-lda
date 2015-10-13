@@ -268,8 +268,8 @@ void calculate_perplexity() {
 }
 
 void inference(long iteration_idx) {
-    double rho_theta = 1.0 / pow(100 + 10 * iteration_idx, 0.9);
-    double rho_phi = 1.0 / pow(100 + 10 * iteration_idx, 0.9);
+    double rho_theta = pow(100 + 10 * iteration_idx, -0.9);
+    double rho_phi = pow(100 + 10 * iteration_idx, -0.9);
 
     long num_batches = ceil((double)D / BATCH_SIZE);
     long num_epochs = ceil((double)num_batches / _num_threads_);
