@@ -49,6 +49,7 @@ long K;
 // for calculations
 double * N_theta_d_k, * N_phi_w_k, * N_z_k;
 long * C_t;
+double * C_over_C_t;
 double ** N_hat_phi_t_w_k, ** N_hat_z_t_k;
 double * N_count_d, * theta_d_k, * phi_w_k;
 
@@ -126,7 +127,15 @@ int main(int argc, char * argv[]) {
     }
     N_z_k = N_phi_w_k;
 
-    C_t = (long *) malloc(_num_threads_ * sizeof(long));
+    if ((C_t = (long *) malloc(_num_threads_ * sizeof(long))) == NULL) {
+        printf("Out of memory\n");
+        exit(OUT_OF_MEMORY);
+    }
+
+    if ((C_over_C_t = (double *) malloc(_num_threads_ * sizeof(double))) == NULL) {
+        printf("Out of memory\n");
+        exit(OUT_OF_MEMORY);
+    }
 
     if ((N_hat_phi_t_w_k = (double **) malloc(_num_threads_ * sizeof(double *))) == NULL) {
         printf("Out of memory\n");
@@ -358,12 +367,17 @@ void inference(long iteration_idx) {
             free(gamma_k);
         } // end omp parallel
 
+        // compute C / C_t[t]
+        for (long t = 0; t < num_batches_this_epoch; ++t) {
+            C_over_C_t[t] = (double)C / C_t[t];
+        }
+
         // update N_phi_w_k
         #pragma omp parallel for collapse(2) schedule(static) num_threads(_num_threads_)
         for (long w = 1; w <= W; ++w) {
             for (long k = 0; k < K; ++k) {
                 for (long t = 0; t < num_batches_this_epoch; ++t) {
-                    N_phi_w_k(w, k) = rho_phi * C / C_t[t] * N_hat_phi_t_w_k(t, w, k) \
+                    N_phi_w_k(w, k) = rho_phi * C_over_C_t[t] * N_hat_phi_t_w_k(t, w, k) \
                         + (1 - rho_phi) * N_phi_w_k(w, k);
                 }
             }
@@ -372,7 +386,7 @@ void inference(long iteration_idx) {
         #pragma omp parallel for schedule(static) num_threads(_num_threads_)
         for (long k = 0; k < K; ++k) {
             for (long t = 0; t < num_batches_this_epoch; ++t) {
-                N_z_k(k) = rho_phi * C / C_t[t] * N_hat_z_t_k(t, k) \
+                N_z_k(k) = rho_phi * C_over_C_t[t] * N_hat_z_t_k(t, k) \
                     + (1 - rho_phi) * N_z_k(k);
             }
         }
