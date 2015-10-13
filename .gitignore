@@ -7,6 +7,10 @@ data/
 # Executable
 fastLDA
 
+# Result files
+topics.txt
+doctopic.txt
+
 # Temp files
 *.swp
 
