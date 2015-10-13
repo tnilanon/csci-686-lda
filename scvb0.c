@@ -49,7 +49,7 @@ long K;
 // for calculations
 double * N_theta_d_k, * N_phi_w_k, * N_z_k;
 long * C_t;
-double * C_over_C_t;
+double * C_over_C_t, * one_over_N_z_k_plus_W_times_ETA;
 double ** N_hat_phi_t_w_k, ** N_hat_z_t_k;
 double * N_count_d, * theta_d_k, * phi_w_k;
 
@@ -131,8 +131,11 @@ int main(int argc, char * argv[]) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
     }
-
     if ((C_over_C_t = (double *) malloc(_num_threads_ * sizeof(double))) == NULL) {
+        printf("Out of memory\n");
+        exit(OUT_OF_MEMORY);
+    }
+    if ((one_over_N_z_k_plus_W_times_ETA = (double *) malloc(K * sizeof(double))) == NULL) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
     }
@@ -255,10 +258,13 @@ void calculate_theta_phi() {
             theta_d_k(d, k) = (double)(N_theta_d_k(d, k) + ALPHA) / (N_count_d(d) + K * ALPHA);
         }
     }
+    for (long k = 0; k < K; ++k) {
+        one_over_N_z_k_plus_W_times_ETA[k] = 1 / (N_z_k(k) + W * ETA);
+    }
     #pragma omp parallel for schedule(static) num_threads(_num_threads_)
     for (long w = 1; w <= W; ++w) {
         for (long k = 0; k < K; ++k) {
-            phi_w_k(w, k) = (double)(N_phi_w_k(w, k) + ETA) / (N_z_k(k) + W * ETA);
+            phi_w_k(w, k) = (double)(N_phi_w_k(w, k) + ETA) * one_over_N_z_k_plus_W_times_ETA[k];
         }
     }
 }
@@ -294,6 +300,10 @@ void inference(long iteration_idx) {
         }
         long num_batches_this_epoch = first_batch_next_epoch - first_batch_this_epoch;
 
+        for (long k = 0; k < K; ++k) {
+            one_over_N_z_k_plus_W_times_ETA[k] = 1 / (N_z_k(k) + W * ETA);
+        }
+
         // for each batch in epoch
         #pragma omp parallel num_threads(num_batches_this_epoch)
         {
@@ -306,6 +316,7 @@ void inference(long iteration_idx) {
             }
 
             C_t[thread_id] = 0;
+
             // set N_hat_phi_t_w_k, N_hat_z_t_k to zero
             memset(N_hat_phi_t_w_k[thread_id], 0, (W + 1) * K * sizeof(double));
 
@@ -324,7 +335,7 @@ void inference(long iteration_idx) {
                         for (long k = 0; k < K; ++k) {
                             gamma_k[k] = (N_theta_d_k(d, k) + ALPHA) \
                                 * (N_phi_w_k(word_d_i[d][i], k) + ETA) \
-                                / (N_z_k(k) + W * ETA);
+                                * one_over_N_z_k_plus_W_times_ETA[k];
                             normalizer += gamma_k[k];
                         }
                         normalizer = 1 / normalizer;
@@ -345,7 +356,7 @@ void inference(long iteration_idx) {
                     for (long k = 0; k < K; ++k) {
                         gamma_k[k] = (N_theta_d_k(d, k) + ALPHA) \
                             * (N_phi_w_k(word_d_i[d][i], k) + ETA) \
-                            / (N_z_k(k) + W * ETA);
+                            * one_over_N_z_k_plus_W_times_ETA[k];
                         normalizer += gamma_k[k];
                     }
                     normalizer = 1 / normalizer;
