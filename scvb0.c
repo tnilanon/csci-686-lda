@@ -15,7 +15,6 @@
 #define N_hat_z_t_k(t, k) N_hat_z_t_k[(t)][(k)]
 
 // recover hidden variables
-#define N_count_d(d) N_count_d[(d)]
 #define theta_d_k(d, k) theta_d_k[(d)*K+(k)]
 #define phi_w_k(w, k) phi_w_k[(w)*K+(k)]
 
@@ -51,7 +50,7 @@ double * N_theta_d_k, * N_phi_w_k, * N_z_k;
 long * C_t;
 double * C_over_C_t, * one_over_N_z_k_plus_W_times_ETA;
 double ** N_hat_phi_t_w_k, ** N_hat_z_t_k;
-double * N_count_d, * theta_d_k, * phi_w_k;
+double * theta_d_k, * phi_w_k;
 
 // for output
 struct _word_probability ** topic;
@@ -152,10 +151,6 @@ int main(int argc, char * argv[]) {
     }
     N_hat_z_t_k = N_hat_phi_t_w_k;
 
-    if ((N_count_d = (double *) malloc((D + 1) * sizeof(double))) == NULL) {
-        printf("Out of memory\n");
-        exit(OUT_OF_MEMORY);
-    }
     if ((theta_d_k = (double *) malloc((D + 1) * K * sizeof(double))) == NULL) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
@@ -247,15 +242,13 @@ int main(int argc, char * argv[]) {
 void calculate_theta_phi() {
     #pragma omp parallel for schedule(static) num_threads(_num_threads_)
     for (long d = 1; d <= D; ++d) {
-        N_count_d(d) = 0;
+        double one_over_N_theta_d_plus_K_times_ALPHA = 0;
         for (long k = 0; k < K; ++k) {
-            N_count_d(d) += N_theta_d_k(d, k);
+            one_over_N_theta_d_plus_K_times_ALPHA += N_theta_d_k(d, k);
         }
-    }
-    #pragma omp parallel for schedule(static) num_threads(_num_threads_)
-    for (long d = 1; d <= D; ++d) {
+        one_over_N_theta_d_plus_K_times_ALPHA = 1 / (one_over_N_theta_d_plus_K_times_ALPHA + K * ALPHA);
         for (long k = 0; k < K; ++k) {
-            theta_d_k(d, k) = (double)(N_theta_d_k(d, k) + ALPHA) / (N_count_d(d) + K * ALPHA);
+            theta_d_k(d, k) = (double)(N_theta_d_k(d, k) + ALPHA) * one_over_N_theta_d_plus_K_times_ALPHA;
         }
     }
     for (long k = 0; k < K; ++k) {
