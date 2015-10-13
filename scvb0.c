@@ -181,9 +181,14 @@ int main(int argc, char * argv[]) {
     #pragma omp parallel for schedule(static) num_threads(_num_threads_)
     for (long d = 1; d <= D; ++d) {
         long thread_id = omp_get_thread_num();
+        unsigned long x, y, z, t;
+        // TODO: random these in final version
+        x=123456789, y=362436069, z=521288629, t = 0;
         for (long i = 0; i < num_unique_d[d]; ++i) {
             for (long c = 0; c < count_d_i[d][i]; ++c) {
-                long k = rand() % K;
+                x ^= x << 16; x ^= x >> 5; x ^= x << 1;
+                t = x; x = y; y = z; z = t ^ x ^ y;
+                long k = z % K;
                 N_theta_d_k(d, k) += 1;
                 N_hat_phi_t_w_k(thread_id, word_d_i[d][i], k) += 1;
                 N_hat_z_t_k(thread_id, k) += 1;
