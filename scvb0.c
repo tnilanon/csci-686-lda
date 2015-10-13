@@ -410,7 +410,6 @@ void calculate_topic() {
     }
 
     // sort topic probabilities over words
-    #pragma omp parallel for schedule(static) num_threads(2)
     for (long k = 0; k < K; ++k) {
         merge_sort(topic[k], W);
     }

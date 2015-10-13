@@ -98,11 +98,8 @@ void merge_sort(struct _word_probability topic_dist[], long n) {
     if (n <= 10) {
         bubble_sort(topic_dist, n);
     } else {
-        #pragma omp task firstprivate(topic_dist, n)
         merge_sort(topic_dist, n/2);
-        #pragma omp task firstprivate(topic_dist, n)
         merge_sort(topic_dist + (n/2), n - (n/2));
-        #pragma omp taskwait
         merge(topic_dist, n);
     }
 }
