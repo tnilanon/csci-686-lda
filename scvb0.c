@@ -20,7 +20,9 @@
 #define phi_w_k(w, k) phi_w_k[(w)*K+(k)]
 
 #ifndef NDEBUG
+#ifndef REPORT_PERPLEXITY
 #define REPORT_PERPLEXITY
+#endif
 #endif
 
 // constants
