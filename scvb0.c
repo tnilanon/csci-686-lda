@@ -174,19 +174,39 @@ int main(int argc, char * argv[]) {
 
     // randomly initialize N_theta_d_k, N_phi_w_k, N_z_k
     start_timer();
-    memset(N_theta_d_k, 0, (D + 1) * K * sizeof(double));
-    memset(N_phi_w_k, 0, (W + 1) * K * sizeof(double));
-    // N_z_k is in N_phi_w_k
+
+    for (long t = 0; t < _num_threads_; ++t)
+        memset(N_hat_phi_t_w_k[t], 0, (W + 1) * K * sizeof(double));
+
+    #pragma omp parallel for schedule(static) num_threads(_num_threads_)
     for (long d = 1; d <= D; ++d) {
+        long thread_id = omp_get_thread_num();
         for (long i = 0; i < num_unique_d[d]; ++i) {
             for (long c = 0; c < count_d_i[d][i]; ++c) {
                 long k = rand() % K;
                 N_theta_d_k(d, k) += 1;
-                N_phi_w_k(word_d_i[d][i], k) += 1;
-                N_z_k(k) += 1;
+                N_hat_phi_t_w_k(thread_id, word_d_i[d][i], k) += 1;
+                N_hat_z_t_k(thread_id, k) += 1;
             }
         }
     }
+
+    #pragma omp parallel for schedule(static) num_threads(_num_threads_)
+    for (long k = 0; k < K; ++k) {
+        for (long w = 1; w <= W; ++w) {
+            double sum_N_phi = 0;
+            for (long t = 0; t < _num_threads_; ++t) {
+                sum_N_phi += N_hat_phi_t_w_k(t, w, k);
+            }
+            N_phi_w_k(w, k) = sum_N_phi;
+        }
+        double sum_N_z = 0;
+        for (long t = 0; t < _num_threads_; ++t) {
+            sum_N_z += N_hat_z_t_k(t, k);
+        }
+        N_z_k(k) = sum_N_z;
+    }
+
     stop_timer("random initialization took %.3f seconds\n");
 
 #ifndef NDEBUG
@@ -200,7 +220,6 @@ int main(int argc, char * argv[]) {
     printf("\n");
 
 #ifdef REPORT_PERPLEXITY
-    // calculate average perplexity per word
     printf("calculate initial perplexity:\n");
 
     start_timer();
