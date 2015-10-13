@@ -31,7 +31,7 @@ void read_sparse_dataset(char input_file_name[]) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
     };
-    if ((size_d = (long *) malloc((D + 1) * sizeof(long))) == NULL) {
+    if ((num_unique_d = (long *) malloc((D + 1) * sizeof(long))) == NULL) {
         printf("Out of memory\n");
         exit(OUT_OF_MEMORY);
     }
@@ -64,7 +64,7 @@ void read_sparse_dataset(char input_file_name[]) {
         if (this_doc != last_doc) {
             if (last_doc != -1) {
                 // malloc and copy over
-                size_d[last_doc] = next_temp;
+                num_unique_d[last_doc] = next_temp;
                 long copy_size = next_temp * sizeof(long);
                 if ((word_d_i[last_doc] = (long *) malloc(copy_size)) == NULL) {
                     printf("Out of memory\n");
@@ -91,7 +91,7 @@ void read_sparse_dataset(char input_file_name[]) {
         count_max = (ctnt > count_max)? ctnt: count_max;
         ++next_temp;
     }
-    size_d[last_doc] = next_temp;
+    num_unique_d[last_doc] = next_temp;
     long copy_size = next_temp * sizeof(long);
     if ((word_d_i[last_doc] = (long *) malloc(copy_size)) == NULL) {
         printf("Out of memory\n");
