@@ -449,6 +449,8 @@ void inference(long iteration_idx) {
             memcpy(&N_phi_w_k(w, 0), _N_phi_k, K * sizeof(double));
             free(_N_phi_k);
         }
+
+        // update N_z_k
         #pragma omp parallel for schedule(static) num_threads(_num_threads_)
         for (long k = 0; k < K; ++k) {
             double _N_z = N_z_k(k);
